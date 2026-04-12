@@ -10,6 +10,7 @@ Starten:
 
 import tkinter as tk
 from tkinter import ttk, filedialog
+import fnmatch
 import os
 import threading
 import time
@@ -220,6 +221,8 @@ class FolderSizeViewer:
         self._scanner = SizeScanner(self._on_size_ready)
         self._tooltip = Tooltip(self.root)
         self._hovered_item: str | None = None
+        self._all_folders: list = []
+        self._all_files: list = []
 
         self._setup_style()
         self._build_ui()
@@ -280,6 +283,39 @@ class FolderSizeViewer:
             toolbar, text="↻  Aktualisieren", command=self._refresh, **btn_cfg
         ).pack(side=tk.LEFT)
 
+        # ---- Suchleiste ----
+        search_frame = tk.Frame(self.root, bd=0, relief=tk.FLAT, pady=3, padx=6)
+        search_frame.pack(fill=tk.X, side=tk.TOP)
+
+        tk.Label(
+            search_frame, text="🔍  Suche:", font=("Segoe UI", 9)
+        ).pack(side=tk.LEFT, padx=(0, 6))
+
+        self._search_var = tk.StringVar()
+        self._search_var.trace_add("write", self._on_filter_change)
+        self._search_entry = tk.Entry(
+            search_frame, textvariable=self._search_var,
+            font=("Segoe UI", 10), relief=tk.SOLID, bd=1
+        )
+        self._search_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+
+        tk.Label(
+            search_frame, text="Mindestgröße:", font=("Segoe UI", 9)
+        ).pack(side=tk.LEFT, padx=(0, 4))
+
+        self._min_size_var = tk.StringVar(value="Alle")
+        ttk.Combobox(
+            search_frame, textvariable=self._min_size_var,
+            values=["Alle", "> 1 KB", "> 100 KB", "> 1 MB", "> 10 MB", "> 100 MB", "> 1 GB"],
+            state="readonly", width=11, font=("Segoe UI", 9)
+        ).pack(side=tk.LEFT, padx=(0, 6))
+        self._min_size_var.trace_add("write", self._on_filter_change)
+
+        tk.Button(
+            search_frame, text="✕  Löschen", command=self._clear_filter,
+            relief=tk.FLAT, padx=6, pady=2, font=("Segoe UI", 9), cursor="hand2"
+        ).pack(side=tk.LEFT)
+
         # ---- Baumansicht ----
         tree_frame = tk.Frame(self.root)
         tree_frame.pack(fill=tk.BOTH, expand=True, padx=6, pady=(0, 4))
@@ -327,6 +363,7 @@ class FolderSizeViewer:
         self._tree.bind("<Motion>",    self._on_mouse_move)
         self._tree.bind("<Leave>",     self._on_mouse_leave)
         self._tree.bind("<<TreeviewSelect>>", self._on_select)
+        self.root.bind("<Control-f>",  lambda _e: self._search_entry.focus_set())
 
         # Sortierung per Spaltenklick
         for col in ("#0", "size", "items", "modified"):
@@ -394,23 +431,16 @@ class FolderSizeViewer:
         self.root.after(0, lambda: self._populate_tree(folders, files, path))
 
     def _populate_tree(self, folders, files, path: str):
-        # Ordner zuerst
-        for entry in folders:
-            self._add_entry(entry, is_dir=True)
+        # Eintraege fuer spaetere Filterung merken
+        self._all_folders = list(folders)
+        self._all_files   = list(files)
 
-        # Dann Dateien
-        for entry in files:
-            self._add_entry(entry, is_dir=False)
-
-        # Hintergrundscans fuer alle Ordner anfordern
+        # Hintergrundscans fuer ALLE Ordner anfordern (unabhaengig vom Filter)
         for entry in folders:
             self._scanner.request(entry.path, self.root)
 
-        n_folders = len(folders)
-        n_files   = len(files)
-        self._status_var.set(
-            f"{path}     —     {n_folders} Ordner,  {n_files} Datei(en)"
-        )
+        # Baum gemaess aktivem Filter befuellen
+        self._apply_filter()
 
     def _add_entry(self, entry: os.DirEntry, is_dir: bool):
         try:
@@ -473,6 +503,12 @@ class FolderSizeViewer:
         # Tooltip aktualisieren, falls der Nutzer gerade darueber hovert
         if self._hovered_item == path:
             self._tooltip.update_text(self._tooltip_text(path, size_bytes, item_count))
+
+        # Mindestgroessen-Filter nachtraeglich anwenden: Ordner ausblenden falls zu klein
+        min_size = self._get_min_size_bytes()
+        if min_size > 0 and size_bytes < min_size:
+            self._tree.delete(path)
+            self._update_filter_status()
 
     # ------------------------------------------------------------------
     # Tooltip
@@ -619,6 +655,95 @@ class FolderSizeViewer:
             except ValueError:
                 pass
         return -1.0
+
+    # ------------------------------------------------------------------
+    # Suche & Filter
+    # ------------------------------------------------------------------
+
+    _MIN_SIZE_BYTES: dict = {
+        "Alle":     0,
+        "> 1 KB":   1_024,
+        "> 100 KB": 100 * 1_024,
+        "> 1 MB":   1_024 ** 2,
+        "> 10 MB":  10 * 1_024 ** 2,
+        "> 100 MB": 100 * 1_024 ** 2,
+        "> 1 GB":   1_024 ** 3,
+    }
+
+    def _get_min_size_bytes(self) -> int:
+        return self._MIN_SIZE_BYTES.get(self._min_size_var.get(), 0)
+
+    def _on_filter_change(self, *_args):
+        self._apply_filter()
+
+    def _clear_filter(self):
+        self._search_var.set("")
+        self._min_size_var.set("Alle")
+
+    def _matches_filter(self, entry: os.DirEntry, is_dir: bool) -> bool:
+        """Gibt True zurueck wenn der Eintrag den aktuellen Filtern entspricht."""
+        # Textfilter (unterstuetzt Wildcards wie *.log oder temp*)
+        text = self._search_var.get().strip().lower()
+        if text:
+            name = entry.name.lower()
+            if "*" in text or "?" in text:
+                if not fnmatch.fnmatch(name, text):
+                    return False
+            else:
+                if text not in name:
+                    return False
+
+        # Mindestgroessen-Filter
+        min_size = self._get_min_size_bytes()
+        if min_size > 0:
+            if is_dir:
+                cached = self._scanner.get_cached(entry.path)
+                if cached is not None:
+                    size_bytes, _ = cached
+                    if size_bytes < min_size:
+                        return False
+                # Noch nicht gecacht -> anzeigen (Groesse unbekannt)
+            else:
+                try:
+                    if entry.stat(follow_symlinks=False).st_size < min_size:
+                        return False
+                except OSError:
+                    pass
+
+        return True
+
+    def _apply_filter(self):
+        """Leert den Baum und befuellt ihn neu gemaess aktueller Suchkriterien."""
+        if not self._all_folders and not self._all_files:
+            return
+
+        for item in self._tree.get_children():
+            self._tree.delete(item)
+
+        matched_folders = [e for e in self._all_folders if self._matches_filter(e, True)]
+        matched_files   = [e for e in self._all_files   if self._matches_filter(e, False)]
+
+        for entry in matched_folders:
+            self._add_entry(entry, is_dir=True)
+        for entry in matched_files:
+            self._add_entry(entry, is_dir=False)
+
+        self._update_filter_status(len(matched_folders), len(matched_files))
+
+    def _update_filter_status(self, n_folders: int = -1, n_files: int = -1):
+        """Aktualisiert die Statuszeile; zaehlt bei Bedarf selbst."""
+        if n_folders < 0:
+            children = self._tree.get_children()
+            n_folders = sum(1 for iid in children if os.path.isdir(iid))
+            n_files   = len(children) - n_folders
+
+        total = len(self._all_folders) + len(self._all_files)
+        shown = n_folders + n_files
+        filter_info = f"  —  Filter: {shown} von {total} angezeigt" if shown < total else ""
+
+        self._status_var.set(
+            f"{self.current_path}     —     {n_folders} Ordner,  {n_files} Datei(en){filter_info}"
+        )
 
     # ------------------------------------------------------------------
     # Hilfsmethoden
