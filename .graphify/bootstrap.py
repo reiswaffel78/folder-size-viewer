@@ -34,7 +34,7 @@ GRAPH = OUT / "graph.json"
 # Paths whose changes never make the graph stale.
 IGNORED = ("graphify-out/", ".graphify/", ".claude/", ".agents/", ".cursor/",
            ".git/", ".github/", "CLAUDE.md", "AGENTS.md", ".gitignore",
-           ".gitattributes", ".mcp.json")
+           ".gitattributes", ".graphifyignore", ".mcp.json")
 BUILD_TIMEOUT = int(os.environ.get("GRAPHIFY_BOOTSTRAP_TIMEOUT", "900"))
 
 

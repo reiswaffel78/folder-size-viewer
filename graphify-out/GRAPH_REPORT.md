@@ -1,30 +1,27 @@
 # Graph Report - folder-size-viewer  (2026-10-18)
 
 ## Corpus Check
-- 6 files · ~2,970 words
+- 1 files · ~2,193 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 2 file(s) not represented in the graph (top: (none) 2)
+- Unclassified: 3 file(s) not represented in the graph (top: (none) 3)
 
 ## Summary
-- 86 nodes · 142 edges · 10 communities (1 shown, 9 thin omitted)
-- Extraction: 92% EXTRACTED · 8% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.85)
+- 76 nodes · 136 edges · 7 communities (0 shown, 7 thin omitted)
+- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 12 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a437b6b8`
+- Built from commit: `1d642678`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - FolderSizeViewer
+- ._add_entry
 - SizeScanner
 - ._on_mouse_move
 - folder_size_viewer.py
 - Tooltip
-- CLAUDE.md
-- graphify
-- AGENTS.md
-- .claude/CLAUDE.md
 
 ## God Nodes (most connected - your core abstractions)
 1. `FolderSizeViewer` - 29 edges
@@ -35,35 +32,29 @@
 6. `format_bytes_exact()` - 4 edges
 7. `get_mtime_str()` - 4 edges
 8. `main()` - 4 edges
-9. `graphify` - 2 edges
-10. `sort_key()` - 2 edges
+9. `sort_key()` - 2 edges
+10. `Ordnergroessen-Viewer fuer Windows 10 ======================================…` - 1 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `format_size_full()` --calls--> `format_size()`  [EXTRACTED]
+  folder_size_viewer.py → folder_size_viewer.py  _Bridges community 3 → community 1_
 - `main()` --calls--> `FolderSizeViewer`  [EXTRACTED]
   folder_size_viewer.py → folder_size_viewer.py  _Bridges community 0 → community 4_
 
 ## Import Cycles
 - None detected.
 
-## Communities (10 total, 9 thin omitted)
-
-### Community 3 - "._on_mouse_move"
-Cohesion: 0.21
-Nodes (3): format_bytes_exact(), format_size(), format_size_full()
+## Communities (7 total, 7 thin omitted)
 
 ## Knowledge Gaps
-- **1 isolated node(s):** `graphify-mcp`
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 32 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **9 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `FolderSizeViewer` connect `FolderSizeViewer` to `._add_entry`, `SizeScanner`, `._on_mouse_move`, `folder_size_viewer.py`, `Tooltip`?**
-  _High betweenness centrality (0.398) - this node is a cross-community bridge._
-- **What connects `graphify-mcp` to the rest of the system?**
-  _1 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Why does `SizeScanner` connect `SizeScanner` to `FolderSizeViewer`, `._on_mouse_move`, `folder_size_viewer.py`?**
-  _High betweenness centrality (0.133) - this node is a cross-community bridge._
+- **Why does `FolderSizeViewer` connect `FolderSizeViewer` to `._add_entry`, `._on_mouse_move`, `folder_size_viewer.py`, `Tooltip`, `._apply_filter`?**
+  _High betweenness centrality (0.511) - this node is a cross-community bridge._
+- **Why does `SizeScanner` connect `SizeScanner` to `FolderSizeViewer`, `._add_entry`, `folder_size_viewer.py`?**
+  _High betweenness centrality (0.172) - this node is a cross-community bridge._
 - **Why does `Tooltip` connect `Tooltip` to `FolderSizeViewer`, `._add_entry`, `SizeScanner`, `folder_size_viewer.py`?**
-  _High betweenness centrality (0.105) - this node is a cross-community bridge._
+  _High betweenness centrality (0.135) - this node is a cross-community bridge._
